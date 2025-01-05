@@ -12,8 +12,6 @@
       {{ each.content }}
     </span>
 
-    <p>{{ appStore.placedEntities }}</p>
-
   </div>
 </template>
 

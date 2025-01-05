@@ -4,17 +4,40 @@ export const useAppStore = defineStore('app', {
 
     state: () => {
         return {
+            overlay: false,
+            modalComponent: null,
+            modalProps: null,
+            playMode: false,
             entities: {
                 "entity-pedestrain" : {
                     id: "entity-pedestrain",
                     name: "pedestrain",
-                    content: "🚶"
+                    content: "🚶",
+                    societalValue: 0,
+                    speed: 150
                 },
                 "entity-cyclist" : {
                     id: "entity-cyclist",
                     name: "cyclist",
-                    content: "🚴"
+                    content: "🚴",
+                    societalValue: 0,
+                    speed: 150
                 },
+                "entity-av" : {
+                    id: "entity-av",
+                    name: "av",
+                    content: "🚙",
+                    societalValue: 0,
+                    speed: 150
+                },
+                "entity-truck" : {
+                    id: "entity-truck",
+                    name: "truck",
+                    content: "🛻",
+                    societalValue: 0,
+                    speed: 150
+                },
+
             },
             placedEntities: [],
             totalColumns: 5,
@@ -23,6 +46,16 @@ export const useAppStore = defineStore('app', {
     },
 
     actions: {
+        openModal(modalComponent, modalProps) {
+            this.modalComponent = modalComponent;
+            this.modalProps = modalProps;
+            this.overlay = true;
+        },
+        closeModal() {
+            this.overlay = false;
+            this.modalComponent = null;
+            this.modalProps = null;
+        },
         placeEntity(entityId, position) {
             if (!this.placedEntities.find(e => e.position === position)) {
                 const direction = this.getDirection(position);
@@ -43,6 +76,8 @@ export const useAppStore = defineStore('app', {
             return direction;
         },
         moveEntities() {
+            this.playMode = true;
+
             const moveInterval = setInterval(() => {
                 let allEntitiesAtEdge = true; // To check if all entities are at their edges
         
@@ -85,6 +120,8 @@ export const useAppStore = defineStore('app', {
                     clearInterval(moveInterval);
                 }
             }, 150); // Update every 100 milliseconds (adjust to your preference)
+
+            this.playMode = false;
         },
         
         removeEntity(cellIndex) {

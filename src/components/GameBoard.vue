@@ -2,15 +2,15 @@
 
     <div class="border bg-gray-300 grid grid-rows-10 grid-cols-5">
         <div 
-            v-for="(each, index) in 50" 
+            v-for="(each, index) in (appStore.totalColumns * appStore.totalRows)" 
             :key="index" 
             :data-index="index"
-            class=" text-center relative flex"
+            class="border cursor-pointer text-center relative flex justify-center items-center"
             :class="{ 'bg-green-600 dropzone': isEntityAllowed(index), 'p-4' : appStore.placedEntities.length == 0 }" 
             @dragover.prevent="onDragOver"
             @dragleave="onDragLeave" 
             @drop="(event) => onDrop(event, index)"
-            @click="appStore.removeEntity(index)"
+            @click="clickCell(index)"
             >
 
             <span 
@@ -28,26 +28,38 @@
 
 <script setup>
 import { useAppStore } from '../stores/appStore';
+import { useToast } from 'vue-toastification';
+import EntityModal from './EntityModal.vue';
 
+const toast = useToast();
 const appStore = useAppStore();
-const totalColumns = 5;
-const totalRows = 10;
 
 function isEntityAllowed(index) {
 
     // Calculate the row and column based on index
-    const row = Math.floor(index / totalColumns);
-    const col = index % totalColumns;
+    const row = Math.floor(index / appStore.totalColumns);
+    const col = index % appStore.totalColumns;
 
     // Return true if the cell is in the first row, last row, first column, or last column
     // and not the first or last cell of the first and last rows
     return (
-        (row === 0 || row === totalRows - 1 || col === 0 || col === totalColumns - 1) &&
+        (row === 0 || row === appStore.totalRows - 1 || col === 0 || col === appStore.totalColumns - 1) &&
         !(
-            (row === 0 && (col === 0 || col === totalColumns - 1)) || // First row, first or last cell
-            (row === totalRows - 1 && (col === 0 || col === totalColumns - 1)) // Last row, first or last cell
+            (row === 0 && (col === 0 || col === appStore.totalColumns - 1)) || // First row, first or last cell
+            (row === appStore.totalRows - 1 && (col === 0 || col === appStore.totalColumns - 1)) // Last row, first or last cell
         )
     );
+}
+
+function clickCell(index) {
+    if (appStore.playMode) return;
+
+    if (appStore.placedEntities.filter(e => e.position === index).length != 0) {
+        appStore.openModal(EntityModal, {'cellIndex': index})
+    } else {
+        toast.error('No Entity Found')
+    }
+
 }
 
 // Handle the dragover event to allow dropping
@@ -74,7 +86,7 @@ const onDragLeave = (event) => {
 const onDrop = (event, cellIndex) => {
     event.preventDefault();
     const cell = event.target;
-    if (cell.classList.contains('dropzone') && !appStore.placedEntities.find(e => e.position === cellIndex)) {
+    if (!appStore.playMode && cell.classList.contains('dropzone') && !appStore.placedEntities.find(e => e.position === cellIndex)) {
         const entityId = event.dataTransfer.getData('text');
         const entity = appStore.entities[entityId];
 
