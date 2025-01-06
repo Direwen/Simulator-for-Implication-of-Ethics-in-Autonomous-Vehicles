@@ -1,4 +1,7 @@
 import { defineStore } from 'pinia'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast();
 
 export const useAppStore = defineStore('app', {
 
@@ -8,6 +11,7 @@ export const useAppStore = defineStore('app', {
             modalComponent: null,
             modalProps: null,
             playMode: false,
+            showClearButton: false,
             entities: {
                 "entity-pedestrain" : {
                     id: "entity-pedestrain",
@@ -40,8 +44,12 @@ export const useAppStore = defineStore('app', {
 
             },
             placedEntities: [],
+            backupEntities: [],
             totalColumns: 5,
             totalRows: 10,
+            maxEntities: 5,
+            stuckCounter: 0,   // New counter for intervals with no movement
+            maxStuckIntervals: 5,  // Number of intervals to wait before stopping
         }
     },
 
@@ -56,6 +64,21 @@ export const useAppStore = defineStore('app', {
             this.modalComponent = null;
             this.modalProps = null;
         },
+
+        isMaxed() {
+            if (this.placedEntities.length >= this.maxEntities) return true;
+            return false;
+        },
+
+        allowedToBePlaced(entityId) {
+            // Check if the entity being placed is an AV
+            if (this.entities[entityId].name === 'av') {
+                // Allow placement only if there are no other AV entities
+                return !this.placedEntities.some(e => this.entities[e.entityId].name === 'av');
+            }
+            return true; // Allow placement for other entities
+        },
+
         placeEntity(entityId, position) {
             if (!this.placedEntities.find(e => e.position === position)) {
                 const direction = this.getDirection(position);
@@ -75,58 +98,121 @@ export const useAppStore = defineStore('app', {
             
             return direction;
         },
-        moveEntities() {
+   
+        startPlayMode() {
+            if (this.placedEntities.length <= 0) {
+                toast.error("Place an entity first");
+                return;
+            }
             this.playMode = true;
+            this.createBackup();
+            this.runEntityMovements();
+        },
 
-            const moveInterval = setInterval(() => {
-                let allEntitiesAtEdge = true; // To check if all entities are at their edges
-        
-                this.placedEntities.forEach(entity => {
-                    // Move the entity based on its direction
-                    switch (entity.direction) {
-                        case 'up':
-                            if (entity.position - this.totalColumns >= 0) {
-                                entity.position -= this.totalColumns;
-                            }
-                            break;
-                        case 'down':
-                            if (entity.position + this.totalColumns < this.totalRows * this.totalColumns) {
-                                entity.position += this.totalColumns;
-                            }
-                            break;
-                        case 'left':
-                            if (entity.position - 1 >= 0 && (entity.position % this.totalColumns !== 0)) {
-                                entity.position -= 1;
-                            }
-                            break;
-                        case 'right':
-                            if (entity.position + 1 < this.totalRows * this.totalColumns && (entity.position % this.totalColumns !== this.totalColumns - 1)) {
-                                entity.position += 1;
-                            }
-                            break;
-                    }
-        
-                    // Check if any entity has not yet reached the edge
-                    if ((entity.direction === 'up' && entity.position > 0) ||
-                        (entity.direction === 'down' && entity.position < this.totalRows * this.totalColumns - this.totalColumns) ||
-                        (entity.direction === 'left' && entity.position % this.totalColumns !== 0) ||
-                        (entity.direction === 'right' && entity.position % this.totalColumns !== this.totalColumns - 1)) {
-                        allEntitiesAtEdge = false; // There's still an entity that needs to move
-                    }
-                });
-        
-                // If all entities are at the edge, stop the interval
-                if (allEntitiesAtEdge) {
-                    clearInterval(moveInterval);
-                }
-            }, 150); // Update every 100 milliseconds (adjust to your preference)
-
+        stopPlayMode() {
             this.playMode = false;
+            this.showClearButton = true;
+        },
+
+        clearEntities() {
+            this.placedEntities = [];
+            this.stuckCounter = 0;
+            this.showClearButton = false;  // Hide the button until next play mode
+        },
+        
+        createBackup() {
+            this.backupEntities = JSON.parse(JSON.stringify(this.placedEntities));
+        },
+
+        restartSimulation() {
+            if (this.backupEntities.length > 0) {
+                this.placedEntities = JSON.parse(JSON.stringify(this.backupEntities));
+                this.playMode = true;
+                this.stuckCounter = 0;
+                this.runEntityMovements();
+            } else {
+                toast.error('No backup available to restart!');
+            }
         },
         
         removeEntity(cellIndex) {
             this.placedEntities = this.placedEntities.filter(e => e.position !== cellIndex);
-        }
+        },
         
+        runEntityMovements() {
+            const moveInterval = setInterval(() => {
+                if (!this.playMode) {
+                    clearInterval(moveInterval);
+                    return;
+                }
+        
+                let anyEntityMoved = false;
+        
+                this.placedEntities.forEach(entity => {
+                    const prevPosition = entity.position;
+                    this.moveGenericEntity(entity);
+                    if (entity.position !== prevPosition) {
+                        anyEntityMoved = true;
+                    }
+                });
+        
+                // Reset stuck counter if any entity moves
+                if (anyEntityMoved) {
+                    this.stuckCounter = 0;
+                } else {
+                    this.stuckCounter++;
+                }
+                
+                // Stop play mode if no movement for multiple intervals
+                if (this.stuckCounter >= this.maxStuckIntervals) {
+                    this.stopPlayMode();
+                    this.showClearButton = true;
+                    clearInterval(moveInterval);  // Stop the interval properly
+                }
+        
+                this.detectCurrentCollisions();
+            }, 50);
+        },
+
+        moveGenericEntity(placedEntity) {
+            const entityDetails = this.entities[placedEntity.entityId];
+            if (this.istimeToMove(placedEntity, entityDetails)) {
+                this.updatePosition(placedEntity);
+                placedEntity.lastMoveTime = Date.now();  // Update the placed entity's movement time
+            }
+        },        
+        
+        istimeToMove(placedEntity, entityDetails) {
+            return !placedEntity.lastMoveTime || Date.now() - placedEntity.lastMoveTime >= entityDetails.speed;
+        },
+
+        updatePosition(placedEntity) {
+            switch (placedEntity.direction) {
+                case 'up':
+                    if (placedEntity.position - this.totalColumns >= 0) {
+                        placedEntity.position -= this.totalColumns;
+                    }
+                    break;
+                case 'down':
+                    if (placedEntity.position + this.totalColumns < this.totalRows * this.totalColumns) {
+                        placedEntity.position += this.totalColumns;
+                    }
+                    break;
+                case 'left':
+                    if (placedEntity.position % this.totalColumns !== 0) {
+                        placedEntity.position -= 1;
+                    }
+                    break;
+                case 'right':
+                    if (placedEntity.position % this.totalColumns !== this.totalColumns - 1) {
+                        placedEntity.position += 1;
+                    }
+                    break;
+            }
+        },
+
+        detectCurrentCollisions() {
+            
+        }
     }
 })

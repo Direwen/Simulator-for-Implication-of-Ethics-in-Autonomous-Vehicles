@@ -17,11 +17,11 @@
                 </div>
                 <div class="flex justify-between items-center font-semibold uppercase">
                     <span>Societal Value</span>
-                    <input type="number" :value="entityDetails?.societalValue" @input="updateSocietalValue($event.target.value)">
+                    <input type="number" min="0" max="100" :value="entityDetails?.societalValue" @input="updateSocietalValue($event.target.value)">
                 </div>
                 <div class="flex justify-between items-center font-semibold uppercase">
                     <span>Speed</span>
-                    <input type="number" :value="entityDetails?.speed" @input="updateSpeed($event.target.value)" class="max-w-1/4 bg-transparent border px-2 py-1 rounded">
+                    <input type="number" min="50" max="500" :value="entityDetails?.speed" @input="updateSpeed($event.target.value)" class="max-w-1/4 bg-transparent border px-2 py-1 rounded">
                 </div>
             </section>
             <div class="divider"></div>
@@ -52,14 +52,16 @@ onMounted(() => {
 });
 
 const updateSocietalValue = (value) => {
-    entityDetails.value.societalValue = value;
+    const clampedValue = Math.max(0, Math.min(100, value));
+    entityDetails.value.societalValue = clampedValue;
     const placedEntity = appStore.placedEntities.find(en => en.position == props.cellIndex);
-    appStore.entities[placedEntity.entityId].societalValue = value;
+    appStore.entities[placedEntity.entityId].societalValue = clampedValue;
 };
 
 const updateSpeed = (value) => {
-    entityDetails.value.speed = value;
+    const clampedValue = Math.max(50, Math.min(500, value));
+    entityDetails.value.speed = clampedValue;
     const placedEntity = appStore.placedEntities.find(en => en.position == props.cellIndex);
-    appStore.entities[placedEntity.entityId].speed = value;
+    appStore.entities[placedEntity.entityId].speed = clampedValue;
 };
 </script>

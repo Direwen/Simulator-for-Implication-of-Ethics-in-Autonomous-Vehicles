@@ -7,16 +7,19 @@
 
     <ThemeController />
 
-    <p>{{ appStore.placedEntities }}</p>
-
     <!-- Container for draggable entities -->
     <Navbar />
     <!-- Board -->
     <GameBoard />
 
-    <section class="flex justify-center items-center gap-2">
+    <section class="flex justify-center items-center gap-2 p-4">
+      <button v-if="!appStore.playMode && !appStore.showClearButton" @click="appStore.startPlayMode()" class="btn">
+        {{ !appStore.playMode ? "Play" : "Stop" }}
+      </button>
 
-      <button @click="play" class="btn my-6">PLAY</button>
+      <button v-if="appStore.showClearButton" class="btn" @click="appStore.restartSimulation()">Restart</button>
+
+      <button v-if="appStore.showClearButton" class="btn" @click="appStore.clearEntities()">Clear</button>
 
     </section>
   </div>
@@ -34,6 +37,6 @@ const appStore = useAppStore();
 const toast = useToast();
 
 const play = () => {
-  appStore.moveEntities()
+
 }
 </script>
