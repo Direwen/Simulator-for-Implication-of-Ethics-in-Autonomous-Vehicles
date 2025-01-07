@@ -160,14 +160,19 @@ export const useAppStore = defineStore('app', {
         
                 let anyEntityMoved = false;
         
-                this.placedEntities.forEach(entity => {
+                for (let i = 0; i < this.placedEntities.length; i++) {
+                    const entity = this.placedEntities[i];
                     const prevPosition = entity.position;
-                    if (entity.entityId == 'entity-av') this.moveAvEntity(entity, this.placedEntities);
-                    else this.moveGenericEntity(entity);
+                    if ((entity.entityId != 'entity-av') ? !this.moveGenericEntity(i) : !this.moveAvEntity(i)) {
+                        toast.error(`A Collision occurred at ${this.placedEntities[i].position}`);
+                        this.stopPlayMode();
+                        clearInterval(moveInterval);
+                        return;
+                    }
                     if (entity.position !== prevPosition) {
                         anyEntityMoved = true;
                     }
-                });
+                }
         
                 // Reset stuck counter if any entity moves
                 if (anyEntityMoved) this.stuckCounter = 0; 
@@ -177,64 +182,58 @@ export const useAppStore = defineStore('app', {
                 if (this.stuckCounter >= this.maxStuckIntervals) {
                     this.stopPlayMode();
                     clearInterval(moveInterval);  // Stop the interval properly
-                }
-
-                // Stop play mode of an collision occured
-                const avCollisionPosition = this.detectAvCollisions(this.placedEntities);
-                if (avCollisionPosition >= 0) {
-                    toast.error(`A Collision occured at ${avCollisionPosition}`)
-                    this.stopPlayMode();
-                    clearInterval(moveInterval);  // Stop the interval properly
+                    return;
                 }
 
             }, 50);
         },
 
-        moveGenericEntity(placedEntity) {
+        moveGenericEntity(index) {
+            const placedEntity = this.placedEntities[index];
             const entityDetails = this.entities[placedEntity.entityId];
             if (this.istimeToMove(placedEntity, entityDetails)) {
-                this.updatePosition(placedEntity);
-                placedEntity.lastMoveTime = Date.now();  // Update the placed entity's movement time
+                this.updatePosition(index);
+                placedEntity.lastMoveTime = Date.now();
             }
+            //Detect Collision
+            return this.checkCollisions(index, this.placedEntities);
         },
         
-        moveAvEntity(placedEntity, placedEntities) {
+        moveAvEntity(index) {
+            const placedEntity = this.placedEntities[index];
             const entityDetails = this.entities[placedEntity.entityId];
             if (this.istimeToMove(placedEntity, entityDetails)) {
-                // Predict Potential Collisions
-                this.predictCollisions(placedEntity, placedEntities);
-                //Avoid if possible
-                // If unavoidable, stop (skip the turn to move)
-                // If not stopptable, 
-                this.updatePosition(placedEntity);
-                placedEntity.lastMoveTime = Date.now();  // Update the placed entity's movement time
+                this.updatePosition(index);
+                placedEntity.lastMoveTime = Date.now();
             }
+            //Detect Collision
+            return this.checkCollisions(index, this.placedEntities);
         },
         
         istimeToMove(placedEntity, entityDetails) {
             return !placedEntity.lastMoveTime || Date.now() - placedEntity.lastMoveTime >= entityDetails.speed;
         },
 
-        updatePosition(placedEntity) {
-            switch (placedEntity.direction) {
+        updatePosition(index) {
+            switch (this.placedEntities[index].direction) {
                 case 'up':
-                    if (placedEntity.position - this.totalColumns >= 0) {
-                        placedEntity.position -= this.totalColumns;
+                    if (this.placedEntities[index].position - this.totalColumns >= 0) {
+                        this.placedEntities[index].position -= this.totalColumns;
                     }
                     break;
                 case 'down':
-                    if (placedEntity.position + this.totalColumns < this.totalRows * this.totalColumns) {
-                        placedEntity.position += this.totalColumns;
+                    if (this.placedEntities[index].position + this.totalColumns < this.totalRows * this.totalColumns) {
+                        this.placedEntities[index].position += this.totalColumns;
                     }
                     break;
                 case 'left':
-                    if (placedEntity.position % this.totalColumns !== 0) {
-                        placedEntity.position -= 1;
+                    if (this.placedEntities[index].position % this.totalColumns !== 0) {
+                        this.placedEntities[index].position -= 1;
                     }
                     break;
                 case 'right':
-                    if (placedEntity.position % this.totalColumns !== this.totalColumns - 1) {
-                        placedEntity.position += 1;
+                    if (this.placedEntities[index].position % this.totalColumns !== this.totalColumns - 1) {
+                        this.placedEntities[index].position += 1;
                     }
                     break;
             }
@@ -253,24 +252,47 @@ export const useAppStore = defineStore('app', {
             return nextPosition;
         },
 
-        detectAvCollisions(placedEntities) {
-            const avPosition = placedEntities[placedEntities.length - 1].position;
-
-            for (const entity of placedEntities) {
-                if (entity.entityId != 'entity-av') {
-                    if (entity.position == avPosition) return avPosition; 
-                }
+        checkCollisions(entityIndex, placedEntities) {
+            for (let index = 0; index < this.placedEntities.length; index++) {
+                if (index === entityIndex) continue;
+                if (this.placedEntities[index].position === this.placedEntities[entityIndex].position) return false;
             }
 
-            return -1;  // Return -1 if no collision is detected
+            return true;
         },
 
-        predictCollisions(mainEntity, placedEntities) {
-            const filteredEntities = placedEntities.filter(entity => entity.entityId != mainEntity.entityId);
-            filteredEntities.forEach(entity => {
+        // predictCollisions(mainEntity, placedEntities) {
+        //     const filteredEntities = placedEntities.filter(entity => entity.entityId != mainEntity.entityId);
+        //     const avPredictedNextPosition = this.predictNextPosition(mainEntity);
+
+        //     filteredEntities.forEach(entity => {
                 
-            })
-        },
+        //         if (entity.position == mainEntity.position) {
+        //             toast.success(`An entity crashed into AV at ${entity.position}`);
+        //         }
+                
+        //         entity.predictedNextPosition = this.predictNextPosition(entity);
+                
+        //         // Predicting Collisions based on current positions of other entities
+        //         if (entity.position === avPredictedNextPosition) {
+        //             console.log('About to collide at ', avPredictedNextPosition);
+        //             toast.warning(`A Collision about to happen at ${avPredictedNextPosition}`);
+        //             return;
+        //         } else {
+        //             console.log(`no collisions at ${avPredictedNextPosition} of AV and ${entity.position} of Entity`)
+        //         }
+
+        //         // Predicting Collision based on next positions of other entities
+        //         if (entity.predictedNextPosition === avPredictedNextPosition) {
+        //             console.log(`Predicted collision at ${entity.predictedNextPosition}, next position of ${entity.entityId}`)
+        //             toast.info(`Predicted a potential collision at ${avPredictedNextPosition}`);
+        //             return;
+        //         } else {
+        //             console.log("No potential collisions detected");
+        //         }
+        //     });
+
+        // },
         
     }
 })

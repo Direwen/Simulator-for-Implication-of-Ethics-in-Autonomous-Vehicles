@@ -7,6 +7,8 @@
 
     <ThemeController />
 
+    <p v-for="(each, index) in appStore.placedEntities" :key="index">{{index}}-{{ each }}</p>
+
     <!-- Container for draggable entities -->
     <Navbar />
     <!-- Board -->
@@ -31,12 +33,6 @@ import Navbar from './components/Navbar.vue';
 import GameBoard from './components/GameBoard.vue';
 import Overlay from './components/Overlay.vue';
 import { useAppStore } from './stores/appStore';
-import { useToast } from "vue-toastification";
 
 const appStore = useAppStore();
-const toast = useToast();
-
-const play = () => {
-
-}
 </script>
