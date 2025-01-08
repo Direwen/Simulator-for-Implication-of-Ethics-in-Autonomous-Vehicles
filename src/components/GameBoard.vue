@@ -2,11 +2,11 @@
 
     <div class="border bg-gray-300 grid grid-rows-10 grid-cols-5">
         <div v-for="(each, index) in (appStore.totalColumns * appStore.totalRows)" :key="index" :data-index="index"
-            class="border cursor-pointer text-center relative flex justify-center items-center"
+            class="border text-black cursor-pointer text-center relative flex justify-center items-center"
             :class="{ 'bg-green-600 dropzone': isEntityAllowed(index), 'p-4': appStore.placedEntities.length == 0 }"
             @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop="(event) => onDrop(event, index)"
             @click="clickCell(index)">
-
+            {{ index }}
             <span v-for="entity in appStore.placedEntities.filter(e => e.position === index)"
                 :key="entity.entityId + '-' + entity.position" class="text-2xl">
                 {{ appStore.entities[entity.entityId]?.content }}

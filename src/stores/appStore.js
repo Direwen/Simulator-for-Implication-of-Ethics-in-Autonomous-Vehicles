@@ -47,9 +47,9 @@ export const useAppStore = defineStore('app', {
             backupEntities: [],
             totalColumns: 5,
             totalRows: 10,
-            maxEntities: 5,
+            maxEntities: 10,
             stuckCounter: 0,   // New counter for intervals with no movement
-            maxStuckIntervals: 5,  // Number of intervals to wait before stopping
+            maxStuckIntervals: 10,  // Number of intervals to wait before stopping
         }
     },
 
@@ -164,7 +164,7 @@ export const useAppStore = defineStore('app', {
                     const entity = this.placedEntities[i];
                     const prevPosition = entity.position;
                     if ((entity.entityId != 'entity-av') ? !this.moveGenericEntity(i) : !this.moveAvEntity(i)) {
-                        toast.error(`A Collision occurred at ${this.placedEntities[i].position}`);
+                        toast.error(`A Collision occurred at ${entity.position}\n#Culprit => ${entity.entityId}`);
                         this.stopPlayMode();
                         clearInterval(moveInterval);
                         return;
@@ -192,10 +192,12 @@ export const useAppStore = defineStore('app', {
             const placedEntity = this.placedEntities[index];
             const entityDetails = this.entities[placedEntity.entityId];
             if (this.istimeToMove(placedEntity, entityDetails)) {
-                this.updatePosition(index);
-                placedEntity.lastMoveTime = Date.now();
+                //Detect Collision with AV
+                if (!this.detectCollisionsWithAv(index, this.placedEntities)) {
+                    this.updatePosition(index);
+                    placedEntity.lastMoveTime = Date.now();
+                }
             }
-            //Detect Collision
             return this.checkCollisions(index, this.placedEntities);
         },
         
@@ -203,6 +205,8 @@ export const useAppStore = defineStore('app', {
             const placedEntity = this.placedEntities[index];
             const entityDetails = this.entities[placedEntity.entityId];
             if (this.istimeToMove(placedEntity, entityDetails)) {
+                // Predict Collisions
+                this.predictCollisions(index, this.placedEntities);
                 this.updatePosition(index);
                 placedEntity.lastMoveTime = Date.now();
             }
@@ -253,46 +257,128 @@ export const useAppStore = defineStore('app', {
         },
 
         checkCollisions(entityIndex, placedEntities) {
-            for (let index = 0; index < this.placedEntities.length; index++) {
+            for (let index = 0; index < placedEntities.length; index++) {
                 if (index === entityIndex) continue;
-                if (this.placedEntities[index].position === this.placedEntities[entityIndex].position) return false;
+                if (placedEntities[index].position === placedEntities[entityIndex].position) return false;
             }
 
             return true;
         },
 
-        // predictCollisions(mainEntity, placedEntities) {
-        //     const filteredEntities = placedEntities.filter(entity => entity.entityId != mainEntity.entityId);
-        //     const avPredictedNextPosition = this.predictNextPosition(mainEntity);
+        detectCollisionsWithAv(entityIndex, placedEntities) {
+            const assumedNextPosition = this.predictNextPosition(placedEntities[entityIndex]);
 
-        //     filteredEntities.forEach(entity => {
-                
-        //         if (entity.position == mainEntity.position) {
-        //             toast.success(`An entity crashed into AV at ${entity.position}`);
-        //         }
-                
-        //         entity.predictedNextPosition = this.predictNextPosition(entity);
-                
-        //         // Predicting Collisions based on current positions of other entities
-        //         if (entity.position === avPredictedNextPosition) {
-        //             console.log('About to collide at ', avPredictedNextPosition);
-        //             toast.warning(`A Collision about to happen at ${avPredictedNextPosition}`);
-        //             return;
-        //         } else {
-        //             console.log(`no collisions at ${avPredictedNextPosition} of AV and ${entity.position} of Entity`)
-        //         }
+            const avEntity = placedEntities[placedEntities.length - 1];
 
-        //         // Predicting Collision based on next positions of other entities
-        //         if (entity.predictedNextPosition === avPredictedNextPosition) {
-        //             console.log(`Predicted collision at ${entity.predictedNextPosition}, next position of ${entity.entityId}`)
-        //             toast.info(`Predicted a potential collision at ${avPredictedNextPosition}`);
-        //             return;
-        //         } else {
-        //             console.log("No potential collisions detected");
-        //         }
-        //     });
+            if (avEntity.position === assumedNextPosition) return true;
 
-        // },
+            return false;
+        },
+
+        predictCollisions(entityIndex, placedEntities) {
+            // Get the predicted next position of the current entity
+            const assumedNextPosition = this.predictNextPosition(placedEntities[entityIndex]);
+            const currentEntity = placedEntities[entityIndex];
+            const currentEntitySpeed = this.entities[currentEntity.entityId].speed;
+
+            // Loop through all placed entities to check for potential collisions
+            for (let index = 0; index < placedEntities.length; index++) {
+                // Skip the current entity itself
+                if (entityIndex === index) continue;
+
+                // Get the entity being checked and predict its next position
+                const entity = placedEntities[index];
+                entity.predictedNextPosition = this.predictNextPosition(entity);
+                const otherEntitySpeed = this.entities[entity.entityId].speed;
+
+                // Calculate the time it would take for both entities to reach their next positions
+                const timeToReachCurrentEntity = currentEntitySpeed > 0 ? currentEntity.speed : Infinity;
+                const timeToReachOtherEntity = otherEntitySpeed > 0 ? otherEntitySpeed : Infinity;
+
+                // Check if the other entity is currently at the assumed next position
+                if (entity.position === assumedNextPosition) {
+                    console.log('About to collide at ', assumedNextPosition);
+                    toast.warning(`A Collision about to happen at ${assumedNextPosition}`);
+                    console.log(this.specifyCollisionType(currentEntity, placedEntities));
+                    return; // Exit the function if a collision is imminent
+                }
+
+                // Check for potential collision based on predicted next positions and their respective speeds
+                if ((entity.predictedNextPosition === assumedNextPosition) && (timeToReachCurrentEntity === timeToReachOtherEntity)) {
+                    console.log(`Predicted collision at ${entity.predictedNextPosition}, next position of ${entity.entityId}`);
+                    toast.info(`Predicted a potential collision at ${assumedNextPosition}`);
+                    return; // Exit the function if a potential collision is detected
+                }
+            }
+        },
+
+        specifyCollisionType(mainEntity, placedEntities, direction) {
+            const avPosition = mainEntity.position;
+            const totalCols = this.totalColumns;
+            const totalRows = this.totalRows;
+        
+            // Neighboring cells (same as before)
+            const top = avPosition - totalCols;
+            const bottom = avPosition + totalCols;
+            const left = avPosition - 1;
+            const right = avPosition + 1;
+            const topRight = avPosition - totalCols + 1;
+            const bottomRight = avPosition + totalCols + 1;
+        
+            const isLeftEdge = avPosition % totalCols === 0;
+            const isRightEdge = avPosition % totalCols === totalCols - 1;
+            const isTopEdge = avPosition < totalCols;
+            const isBottomEdge = avPosition >= totalCols * (totalRows - 1);
+        
+            // Possible moves based on direction (no backward moves)
+            let possibleMoves = [];
+            if (direction === 'right') {
+                possibleMoves = [
+                    { pos: top, priority: 2, valid: !isTopEdge },
+                    { pos: bottom, priority: 3, valid: !isBottomEdge },
+                    { pos: right, priority: 1, valid: !isRightEdge },
+                    { pos: topRight, priority: 1, valid: !isTopEdge && !isRightEdge },
+                    { pos: bottomRight, priority: 1, valid: !isBottomEdge && !isRightEdge }
+                ];
+            } else if (direction === 'up') {
+                possibleMoves = [
+                    { pos: left, priority: 3, valid: !isLeftEdge },
+                    { pos: right, priority: 2, valid: !isRightEdge },
+                    { pos: top, priority: 1, valid: !isTopEdge }
+                ];
+            } else if (direction === 'down') {
+                possibleMoves = [
+                    { pos: left, priority: 3, valid: !isLeftEdge },
+                    { pos: right, priority: 2, valid: !isRightEdge },
+                    { pos: bottom, priority: 1, valid: !isBottomEdge }
+                ];
+            }
+        
+            // Filter valid moves and sort by priority
+            possibleMoves = possibleMoves
+                .filter(cell => cell.valid)
+                .sort((a, b) => a.priority - b.priority);
+        
+            // Check if cells are occupied
+            const blockedCells = placedEntities.map(e => e.position);
+            const availableMoves = possibleMoves.filter(pos => !blockedCells.includes(pos.pos));
+        
+            if (availableMoves.length > 0) {
+                // Return the best avoidable move (lowest priority number)
+                return {
+                    'status': 'avoidable',
+                    'suggestedPosition': availableMoves[0].pos
+                };
+            } else {
+                // All cells blocked – unavoidable
+                return {
+                    'status': 'unavoidable'
+                };
+            }
+        }
+        
+        
+        
         
     }
 })
