@@ -1,19 +1,28 @@
 <template>
 
-    <div class="border bg-gray-300 grid grid-rows-10 grid-cols-5">
-        <div v-for="(each, index) in (appStore.totalColumns * appStore.totalRows)" :key="index" :data-index="index"
-            class="border text-black cursor-pointer text-center relative flex justify-center items-center"
-            :class="{ 'bg-green-600 dropzone': isEntityAllowed(index), 'p-4': appStore.placedEntities.length == 0 }"
-            @dragover.prevent="onDragOver" @dragleave="onDragLeave" @drop="(event) => onDrop(event, index)"
-            @click="clickCell(index)">
-            {{ index }}
-            <span v-for="entity in appStore.placedEntities.filter(e => e.position === index)"
-                :key="entity.entityId + '-' + entity.position" class="text-2xl">
-                {{ appStore.entities[entity.entityId]?.content }}
-            </span>
-
-        </div>
+<div class="border grid grid-cols-3 w-9/12 md:w-1/2 lg:w-1/3 xl:w-1/4 mx-auto">
+    <div v-for="index in appStore.totalRows * appStore.totalColumns" 
+        :key="index" 
+        :data-index="index"
+        class="text-blue-400 min-h-8 xl:min-h-12 hover:bg-slate-600 cursor-pointer text-center relative flex justify-center items-center"
+        :class="{
+            'dropzone': !appStore.isFinishLine(index), 
+            'bg-cover bg-center bg-[url(https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLo-4Uv7Vs7hs7mND0siLLBydBKq5wQy8xTA&s)]': appStore.isFinishLine(index)
+        }"
+        @dragover.prevent="onDragOver" 
+        @dragleave="onDragLeave" 
+        @drop="(event) => onDrop(event, index)"
+        @click="clickCell(index)"
+    >
+        <span 
+            v-for="entity in appStore.placedEntities.filter(e => e.position === index)"
+            :key="entity.id + '-' + entity.position" class="text-2xl xl:text-5xl">
+            {{ appStore.entities[entity.id]?.content }}
+        </span>
     </div>
+</div>
+
+
 
 </template>
 
@@ -24,23 +33,6 @@ import EntityModal from './EntityModal.vue';
 
 const toast = useToast();
 const appStore = useAppStore();
-
-function isEntityAllowed(index) {
-
-    // Calculate the row and column based on index
-    const row = Math.floor(index / appStore.totalColumns);
-    const col = index % appStore.totalColumns;
-
-    // Return true if the cell is in the first row, last row, first column, or last column
-    // and not the first or last cell of the first and last rows
-    return (
-        (row === 0 || row === appStore.totalRows - 1 || col === 0 || col === appStore.totalColumns - 1) &&
-        !(
-            (row === 0 && (col === 0 || col === appStore.totalColumns - 1)) || // First row, first or last cell
-            (row === appStore.totalRows - 1 && (col === 0 || col === appStore.totalColumns - 1)) // Last row, first or last cell
-        )
-    );
-}
 
 function clickCell(index) {
     if (appStore.playMode) {
@@ -104,7 +96,7 @@ const onDrop = (event, cellIndex) => {
     const entityId = event.dataTransfer.getData('text');
     const entity = appStore.entities[entityId];
 
-    if (!appStore.allowedToBePlaced(entity.id)) {
+    if (!appStore.allowedToBePlaced(entity.id, cellIndex)) {
         toast.error("Only one AV is allowed");
         return;
     }

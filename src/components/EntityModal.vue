@@ -48,20 +48,20 @@ const entityDetails = ref(null);
 
 onMounted(() => {
     const placedEntity = appStore.placedEntities.filter(en => en.position == props.cellIndex);
-    entityDetails.value = appStore.entities[placedEntity[0].entityId];
+    entityDetails.value = appStore.entities[placedEntity[0].id];
 });
 
 const updateSocietalValue = (value) => {
     const clampedValue = Math.max(0, Math.min(100, value));
     entityDetails.value.societalValue = clampedValue;
     const placedEntity = appStore.placedEntities.find(en => en.position == props.cellIndex);
-    appStore.entities[placedEntity.entityId].societalValue = clampedValue;
+    appStore.entities[placedEntity.id].societalValue = clampedValue;
 };
 
 const updateSpeed = (value) => {
     const clampedValue = Math.max(50, Math.min(500, value));
     entityDetails.value.speed = clampedValue;
     const placedEntity = appStore.placedEntities.find(en => en.position == props.cellIndex);
-    appStore.entities[placedEntity.entityId].speed = clampedValue;
+    appStore.entities[placedEntity.id].speed = clampedValue;
 };
 </script>

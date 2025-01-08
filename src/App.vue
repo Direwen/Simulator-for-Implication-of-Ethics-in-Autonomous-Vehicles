@@ -6,9 +6,6 @@
     </Overlay>
 
     <ThemeController />
-
-    <p v-for="(each, index) in appStore.placedEntities" :key="index">{{index}}-{{ each }}</p>
-
     <!-- Container for draggable entities -->
     <Navbar />
     <!-- Board -->
