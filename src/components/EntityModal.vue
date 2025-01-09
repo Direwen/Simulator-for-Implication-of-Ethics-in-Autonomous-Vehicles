@@ -28,7 +28,7 @@
         </template>
 
         <template #footer>
-            <button class="btn btn-error"
+            <button v-if="cellIndex" class="btn btn-error"
                 @click="appStore.removeEntity(cellIndex); appStore.closeModal();">Remove</button>
         </template>
 
@@ -43,10 +43,14 @@ import { useAppStore } from '../stores/appStore';
 import ModalTemplate from './ModalTemplate.vue';
 
 const appStore = useAppStore();
-const props = defineProps(['cellIndex']);
+const props = defineProps(['cellIndex', 'id']);
 const entityDetails = ref(null);
 
 onMounted(() => {
+    if (props.id) {
+        entityDetails.value = appStore.entities[props.id];
+        return;
+    }
     const placedEntity = appStore.placedEntities.filter(en => en.position == props.cellIndex);
     entityDetails.value = appStore.entities[placedEntity[0].id];
 });

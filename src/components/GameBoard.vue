@@ -1,11 +1,13 @@
 <template>
 
-<div class="border grid grid-cols-3 w-9/12 md:w-1/2 lg:w-1/3 xl:w-1/4 mx-auto">
-    <div v-for="index in appStore.totalRows * appStore.totalColumns" 
+<div class="shadow-2xl rounded border grid grid-cols-3 w-9/12 md:w-1/2 lg:w-2/5 xl:w-5/12 mx-auto">
+    <div v-for="index in appStore.totalRows * appStore.totalColumns"
+        :title="appStore.isStartingLine(index) ? `Starting Position (${index})` : `Position (${index})`" 
         :key="index" 
         :data-index="index"
-        class="text-blue-400 min-h-8 xl:min-h-12 hover:bg-slate-600 cursor-pointer text-center relative flex justify-center items-center"
+        class="min-h-8 xl:min-h-12 hover:bg-neutral-content cursor-pointer text-center relative flex justify-center items-center"
         :class="{
+            'bg-gradient-to-b from-indigo-900 to-purple-600' : appStore.isStartingLine(index),
             'dropzone': !appStore.isFinishLine(index), 
             'bg-cover bg-center bg-[url(https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLo-4Uv7Vs7hs7mND0siLLBydBKq5wQy8xTA&s)]': appStore.isFinishLine(index)
         }"

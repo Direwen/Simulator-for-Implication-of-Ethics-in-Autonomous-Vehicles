@@ -121,6 +121,7 @@ export const useAppStore = defineStore('app', {
             },
             placedEntities: [],
             backupEntities: [],
+            actionLogs: [],
             totalColumns: 3,
             totalRows: 12,
             maxEntities: 10,
@@ -265,7 +266,6 @@ export const useAppStore = defineStore('app', {
                     clearInterval(moveInterval);
                 }
 
-                console.log("running")
 
             }, 50);
         },
@@ -413,6 +413,7 @@ export const useAppStore = defineStore('app', {
             const placedEntity = this.placedEntities[entityIndex];
             placedEntity.position = nextPosition;
             placedEntity.lastMoveTime = Date.now();
+            this.actionLogs.push(`${placedEntity.id} has moved to ${placedEntity.position}`)
 
             if (this.isFinishLine(nextPosition)) placedEntity.stop = true;
         },
