@@ -325,6 +325,7 @@ export const useAppStore = defineStore('app', {
                 return this.handleBlockedRow(entityIndex, placedEntity, currentPos, nextRowStart);
             }
 
+            console.log("rerout lay", currentPos)
             // 6. If row is not fully blocked, attempt to reroute (left, right, or forward)
             this.reroute(entityIndex, currentPos, nextPosition, nextRowStart);
 
@@ -415,7 +416,7 @@ export const useAppStore = defineStore('app', {
         },
 
         waitIfOthersComing(nextPosition) {
-            return this.placedEntities.some(e => this.inTheSameCol(nextPosition, e.position));
+            return this.placedEntities.some(e => (this.inTheSameCol(nextPosition, e.position)) && !this.isFinishLine(e.position));
         },
 
         getNextPosition(currentPosition) {

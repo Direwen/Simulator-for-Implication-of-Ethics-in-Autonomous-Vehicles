@@ -12,7 +12,7 @@
     <div class="flex flex-col xl:flex-row xl:justify-center xl:items-center mx-4">
       <GameBoard />
 
-      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] bg-base-200 mx-4 roudned overflow-y-scroll shadow">
+      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] bg-base-300 mx-4 roudned overflow-y-scroll shadow">
         <h1 class="text-2xl lg:text-3xl font-bold underline underline-offset-4 mb-4">Action Logs</h1>
 
         <section class="text-lg lg:text-xl">
