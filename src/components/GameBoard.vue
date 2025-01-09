@@ -97,7 +97,7 @@ const onDrop = (event, cellIndex) => {
     const entity = appStore.entities[entityId];
 
     if (!appStore.allowedToBePlaced(entity.id, cellIndex)) {
-        toast.error("Only one AV is allowed");
+        toast.error("Invalid to be placed in this position");
         cell.classList.remove('bg-yellow-500');
         return;
     }

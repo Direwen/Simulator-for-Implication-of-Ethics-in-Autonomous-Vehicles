@@ -18,105 +18,120 @@ export const useAppStore = defineStore('app', {
                     name: "pedestrain",
                     content: "🚶",
                     societalValue: 1,
-                    speed: 120
+                    speed: 120,
+                    canMove: true
                 },
                 "entity-cyclist": {
                     id: "entity-cyclist",
                     name: "cyclist",
                     content: "🚴",
                     societalValue: 1,
-                    speed: 200
+                    speed: 200,
+                    canMove: true
                 },
                 "entity-av": {
                     id: "entity-av",
                     name: "av",
                     content: "🚙",
-                    societalValue: 2,
-                    speed: 100
+                    societalValue: 3,
+                    speed: 100,
+                    canMove: true
                 },
                 "entity-truck": {
                     id: "entity-truck",
                     name: "truck",
                     content: "🛻",
                     societalValue: 3,
-                    speed: 80
+                    speed: 80,
+                    canMove: true
                 },
                 "entity-car": {
                     id: "entity-car",
                     name: "car",
                     content: "🚗",
-                    societalValue: 2,
-                    speed: 150
+                    societalValue: 3,
+                    speed: 150,
+                    canMove: true
                 },
                 "entity-motorcycle": {
                     id: "entity-motorcycle",
                     name: "motorcycle",
                     content: "🏍️",
                     societalValue: 1,
-                    speed: 180
+                    speed: 180,
+                    canMove: true
                 },
                 "entity-ambulance": {
                     id: "entity-ambulance",
                     name: "ambulance",
                     content: "🚑",
-                    societalValue: 4,  // High priority for avoiding collision
-                    speed: 140
+                    societalValue: 2,  // High priority for avoiding collision
+                    speed: 140,
+                    canMove: true
                 },
                 "entity-bus": {
                     id: "entity-bus",
                     name: "bus",
                     content: "🚌",
-                    societalValue: 3,
-                    speed: 90
+                    societalValue: 2,
+                    speed: 90,
+                    canMove: true
                 },
                 "entity-firetruck": {
                     id: "entity-firetruck",
                     name: "firetruck",
                     content: "🚒",
-                    societalValue: 4,
-                    speed: 100
+                    societalValue: 2,
+                    speed: 100,
+                    canMove: true
                 },
                 "entity-tree": {
                     id: "entity-tree",
                     name: "tree",
                     content: "🌳",
-                    societalValue: 0,  // Obstacle, but not a living being
-                    speed: 0
+                    societalValue: Infinity,  // Obstacle, but not a living being
+                    speed: 0,
+                    canMove: false
                 },
                 "entity-cone": {
                     id: "entity-cone",
                     name: "traffic cone",
                     content: "🚧",
-                    societalValue: 0,
-                    speed: 0
+                    societalValue: Infinity,
+                    speed: 0,
+                    canMove: false
                 },
                 "entity-barrier": {
                     id: "entity-barrier",
                     name: "barrier",
                     content: "🛑",
-                    societalValue: 0,
-                    speed: 0
+                    societalValue: Infinity,
+                    speed: 0,
+                    canMove: false
                 },
                 "entity-animal": {
                     id: "entity-animal",
                     name: "animal",
                     content: "🐕",
-                    societalValue: 1,
-                    speed: 60
+                    societalValue: 3,
+                    speed: 60,
+                    canMove: true
                 },
                 "entity-pothole": {
                     id: "entity-pothole",
                     name: "pothole",
                     content: "🕳️",
-                    societalValue: 0,
-                    speed: 0
+                    societalValue: Infinity,
+                    speed: 0,
+                    canMove: false
                 },
                 "entity-elderly": {
                     id: "entity-elderly",
                     name: "elderly person",
                     content: "👵",
-                    societalValue: 2,
-                    speed: 80
+                    societalValue: 1,
+                    speed: 80,
+                    canMove: true
                 }
             },
             placedEntities: [],
@@ -165,6 +180,8 @@ export const useAppStore = defineStore('app', {
                 // Allow placement only if there are no other AV entities and AV must be at the starting line
                 return (!this.placedEntities.some(e => this.entities[e.id].name === 'av')) && this.isStartingLine(position);
             }
+
+            if (!this.entities[id].canMove && this.isStartingLine(position)) return;
             return true; // Allow placement for other entities
         },
 
@@ -361,6 +378,15 @@ export const useAppStore = defineStore('app', {
                         toast.error("Crash into right wall");
                     } else {
                         toast.error("Crash into side wall");
+                        const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== this.currentPos - 1);
+                        if (isLeftSafe) {
+                            this.updatePosition(entityIndex, currentPos - 1);
+                            toast.error("Crash into Left Side wall");
+                        } else {
+                            this.updatePosition(entityIndex, currentPos + 1);
+                            toast.error("Crash into Right Side wall");
+
+                        }
                     }
                     return true;  // AV avoids further collision by staying in place or hitting the wall
                 }
