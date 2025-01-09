@@ -206,6 +206,7 @@ export const useAppStore = defineStore('app', {
         },
 
         clearEntities() {
+            this.actionLogs = [];
             this.placedEntities = [];
             this.stuckCounter = 0;
             this.showClearButton = false;  // Hide the button until next play mode
@@ -220,6 +221,7 @@ export const useAppStore = defineStore('app', {
                 this.placedEntities = JSON.parse(JSON.stringify(this.backupEntities));
                 this.playMode = true;
                 this.stuckCounter = 0;
+                this.actionLogs = [];
                 this.runEntityMovements();
             } else {
                 toast.error('No backup available to restart!');
@@ -248,13 +250,13 @@ export const useAppStore = defineStore('app', {
 
                     if (currentEntity.id === 'entity-av') {
                         collisionOccured = this.moveAvEntity(index);
-                        console.log("AV", this.placedEntities[index].position)
                     }
                     else collisionOccured = this.moveGenericEntity(index);
 
                     if (collisionOccured) {
                         this.stopPlayMode();
                         toast.error("A Collision Occured");
+                        this.actionLogs.push(`Detected a collision at position ${currentEntity.position}`);
                         clearInterval(moveInterval);
                     }
                 }
@@ -293,11 +295,13 @@ export const useAppStore = defineStore('app', {
             // 1. Check if the next cell is free (normal forward movement)
             if (!this.checkCollisionAt(nextPosition)) {
                 this.updatePosition(entityIndex, nextPosition);
+                this.actionLogs.push(`No Collision Detected! AV has moved from ${currentPos} to ${nextPosition}`);
                 return this.hasCollisionOccurred(entityIndex);  // Movement successful
             }
 
             // 2. Calculate the starting point of the next row
-            const nextRowStart = (Math.floor(nextPosition / this.totalColumns) * this.totalColumns) + 1;
+            const nextRowStart = Math.floor((nextPosition - 1) / this.totalColumns) * this.totalColumns + 1;
+
             console.log("Current Position", currentPos);
             console.log("Next Row Start", nextRowStart);
 
@@ -305,13 +309,16 @@ export const useAppStore = defineStore('app', {
             let isRowBlocked = true;
             for (let x = nextRowStart; x < nextRowStart + 3; x++) {  // Loop through 3 cells in the next row
                 if (!this.checkCollisionAt(x)) {
+                    console.log(`At position, ${x}`, this.checkCollisionAt(x))
                     isRowBlocked = false;
                     break;  // If any cell is free, stop checking
                 }
             }
 
+            
             // 4. If the row is blocked, decide how to handle based on societal values
             if (isRowBlocked) {
+                this.actionLogs.push(`Detected that the next row is blocked starting from ${nextRowStart} position`);
                 const blockingEntities = this.placedEntities.filter(e =>
                     (e.position === nextRowStart) || (e.position === nextRowStart + 1) || (e.position === nextRowStart + 2)
                 );
@@ -368,9 +375,12 @@ export const useAppStore = defineStore('app', {
                 if (this.checkCollisionAt(nextPositionRight)) {
                     // If blocked to the right, move right at current row
                     this.updatePosition(entityIndex, currentPos + 1);
+                    this.actionLogs.push(`No Collision Detected at ${currentPos + 1}! AV has moved from ${currentPos} to ${currentPos + 1}`);
+
                 } else {
                     // Move forward to the next row's right cell
                     this.updatePosition(entityIndex, nextPositionRight);
+                    this.actionLogs.push(`No Collision Detected at ${nextPositionRight}! AV has moved from ${currentPos} to ${nextPositionRight}`);
                 }
 
                 return this.hasCollisionOccurred(entityIndex);
@@ -383,8 +393,12 @@ export const useAppStore = defineStore('app', {
                 // Prioritize left if free, otherwise move right
                 if (this.checkCollisionAt(nextPositionLeft)) {
                     this.updatePosition(entityIndex, nextPositionRight);
+                    this.actionLogs.push(`No Collision Detected at ${nextPositionRight}! AV has moved from ${currentPos} to ${nextPositionRight}`);
+
                 } else {
                     this.updatePosition(entityIndex, nextPositionLeft);
+                    this.actionLogs.push(`No Collision Detected at ${nextPositionLeft}! AV has moved from ${currentPos} to ${nextPositionLeft}`);
+
                 }
 
                 return this.hasCollisionOccurred(entityIndex);
@@ -396,9 +410,13 @@ export const useAppStore = defineStore('app', {
                 if (this.checkCollisionAt(nextPositionLeft)) {
                     // If blocked to the left, move left at current row
                     this.updatePosition(entityIndex, currentPos - 1);
+                    this.actionLogs.push(`No Collision Detected at ${currentPos - 1}! AV has moved from ${currentPos} to ${currentPos - 1}`);
+
                 } else {
                     // Move forward to the next row's left cell
                     this.updatePosition(entityIndex, nextPositionLeft);
+                    this.actionLogs.push(`No Collision Detected at ${nextPositionLeft}! AV has moved from ${currentPos} to ${nextPositionLeft}`);
+
                 }
 
                 return this.hasCollisionOccurred(entityIndex);

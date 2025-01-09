@@ -9,22 +9,18 @@
     <EntitiesDisplayContainer />
     <!-- Container for draggable entities -->
     <!-- Board -->
-    <div class="flex flex-col xl:flex-row xl:justify-center xl:items-center">
+    <div class="flex flex-col xl:flex-row xl:justify-center xl:items-center mx-4">
       <GameBoard />
 
-      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] bg-base-200 mx-4 roudned overflow-y-scroll">
+      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] bg-base-200 mx-4 roudned overflow-y-scroll shadow">
         <h1 class="text-2xl lg:text-3xl font-bold underline underline-offset-4 mb-4">Action Logs</h1>
 
         <section class="text-lg lg:text-xl">
-          <section v-for="log in appStore.actionLogs" :key="log.id" class="transition-all duration-200 ease-in-out cursor-pointer hover:bg-gradient-to-b hover:from-indigo-900 hover:to-purple-600 hover:text-white px-2 py-1">
+          <section v-for="log in appStore.actionLogs.slice().reverse()" :key="log.id" class="transition-all duration-200 ease-in-out cursor-pointer hover:bg-gradient-to-b hover:from-indigo-900 hover:to-purple-600 hover:text-white px-2 py-1">
             <p>{{ log }}</p>
           </section>
-          <section v-for="log in appStore.actionLogs" :key="log.id" class="transition-all duration-200 ease-in-out cursor-pointer hover:bg-gradient-to-b hover:from-indigo-900 hover:to-purple-600 hover:text-white px-2 py-1">
-            <p>{{ log }}</p>
-          </section>
-          <section v-for="log in appStore.actionLogs" :key="log.id" class="transition-all duration-200 ease-in-out cursor-pointer hover:bg-gradient-to-b hover:from-indigo-900 hover:to-purple-600 hover:text-white px-2 py-1">
-            <p>{{ log }}</p>
-          </section>
+
+          <p class="text-center" v-show="appStore.actionLogs.length == 0">No Logs Found</p>
         </section>
       </div>
     </div>
