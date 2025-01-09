@@ -2,7 +2,7 @@
 <div id="container" 
   class="my-4 w-10/12 md:w-8/12 mx-auto rounded bg-gradient-to-b from-indigo-900 to-purple-600 px-4 pb-6 pt-10 
          overflow-x-scroll overflow-y-hidden whitespace-nowrap flex flex-nowrap justify-start items-center gap-2 
-         custom-scrollbar">
+         custom-scrollbar"
 >
   <div 
     v-for="each in appStore.entities" 

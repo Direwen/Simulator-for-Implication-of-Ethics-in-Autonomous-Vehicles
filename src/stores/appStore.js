@@ -265,14 +265,12 @@ export const useAppStore = defineStore('app', {
 
                     if (currentEntity.stop || currentEntity.static || !this.istimeToMove(currentEntity, this.entities[currentEntity.id].speed)) continue;
 
-                    if (currentEntity.id === 'entity-av') {
-                        collisionOccured = this.moveAvEntity(index);
-                    }
+                    if (currentEntity.id === 'entity-av') collisionOccured = this.moveAvEntity(index);
                     else collisionOccured = this.moveGenericEntity(index);
 
-                    if (collisionOccured) {
+                    if (collisionOccured && !this.isFinishLine(currentEntity.position)) {
                         this.stopPlayMode();
-                        toast.error("A Collision Occured");
+                        toast.error(`A Collision Occured - Source #${this.placedEntities[index].id}`);
                         this.actionLogs.push(`Detected a collision at position ${currentEntity.position}`);
                         clearInterval(moveInterval);
                     }
@@ -298,6 +296,7 @@ export const useAppStore = defineStore('app', {
             const nextPosition = placedEntity.position - this.totalColumns;
 
             if (nextPosition >= 0) {
+
                 this.updatePosition(entityIndex, nextPosition);
                 return this.hasCollisionOccurred(entityIndex);
             }
@@ -317,136 +316,122 @@ export const useAppStore = defineStore('app', {
             }
 
             // 2. Calculate the starting point of the next row
-            const nextRowStart = Math.floor((nextPosition - 1) / this.totalColumns) * this.totalColumns + 1;
-
-            console.log("Current Position", currentPos);
-            console.log("Next Row Start", nextRowStart);
-
-            // 3. Check if the entire next row is blocked
-            let isRowBlocked = true;
-            for (let x = nextRowStart; x < nextRowStart + 3; x++) {  // Loop through 3 cells in the next row
-                if (!this.checkCollisionAt(x)) {
-                    console.log(`At position, ${x}`, this.checkCollisionAt(x))
-                    isRowBlocked = false;
-                    break;  // If any cell is free, stop checking
-                }
-            }
-
+            const nextRowStart = this.getNextRowStart(nextPosition);
             
-            // 4. If the row is blocked, decide how to handle based on societal values
-            if (isRowBlocked) {
+            // 3. Check if the entire next row is blocked
+            if (this.isRowBlocked(nextRowStart)) {
+                // 4. If the row is blocked, decide how to handle based on societal values
                 this.actionLogs.push(`Detected that the next row is blocked starting from ${nextRowStart} position`);
-                const blockingEntities = this.placedEntities.filter(e =>
-                    (e.position === nextRowStart) || (e.position === nextRowStart + 1) || (e.position === nextRowStart + 2)
-                );
-
-                // Find the highest societal value among blocking entities
-                const highestSocietalValue = Math.max(...blockingEntities.map(e => this.entities[e.id].societalValue));
-                const avValue = this.entities[placedEntity.id].societalValue;
-                const avColumnPos = (currentPos % this.totalColumns);  // 1 = left, 2 = middle, 3 = right
-
-                // Filter entities based on AV position to minimize damage
-                let crashTargets = [];
-                if (avColumnPos === 1) {
-                    // AV is on the left, consider grid 1 or 2
-                    crashTargets = blockingEntities.filter(e => e.position === nextRowStart || e.position === nextRowStart + 1);
-                } else if (avColumnPos === 2) {
-                    // AV is in the middle, consider all three grids 1, 2, or 3
-                    crashTargets = blockingEntities;
-                } else if (avColumnPos === 3) {
-                    // AV is on the right, consider grid 2 or 3
-                    crashTargets = blockingEntities.filter(e => e.position === nextRowStart + 1 || e.position === nextRowStart + 2);
-                }
-
-                console.log("Column", avColumnPos);
-                console.log("Targets", crashTargets);
-
-                // 5. If an entity with a higher societal value is blocking, crash into it
-                const targetsWithHighestValue = crashTargets.filter(
-                    each => this.entities[each.id].societalValue === highestSocietalValue
-                );
-
-                if (highestSocietalValue >= avValue && targetsWithHighestValue.length > 0) {
-                    // AV crashes into the entity with the highest value
-                    this.updatePosition(entityIndex, targetsWithHighestValue[0].position);
-                    return this.hasCollisionOccurred(entityIndex);
-                } else {
-                    // AV crashes into the side wall based on its position
-                    if (avColumnPos === 1) {
-                        toast.error("Crash into left wall");
-                    } else if (avColumnPos === 3) {
-                        toast.error("Crash into right wall");
-                    } else {
-                        toast.error("Crash into side wall");
-                        const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== this.currentPos - 1);
-                        if (isLeftSafe) {
-                            this.updatePosition(entityIndex, currentPos - 1);
-                            toast.error("Crash into Left Side wall");
-                        } else {
-                            this.updatePosition(entityIndex, currentPos + 1);
-                            toast.error("Crash into Right Side wall");
-
-                        }
-                    }
-                    return true;  // AV avoids further collision by staying in place or hitting the wall
-                }
+                return this.handleBlockedRow(entityIndex, placedEntity, currentPos, nextRowStart);
             }
-
 
             // 6. If row is not fully blocked, attempt to reroute (left, right, or forward)
+            this.reroute(entityIndex, currentPos, nextPosition, nextRowStart);
+
+            return this.hasCollisionOccurred(entityIndex);
+        },
+
+        handleBlockedRow(entityIndex, placedEntity, currentPos, nextRowStart) {
+            const blockingEntities = this.placedEntities.filter(e =>
+                (e.position >= nextRowStart) && (e.position < nextRowStart + 3)
+            );
+
+            // Check if any entity in the row can move
+            const hasMovingEntity = blockingEntities.some(e => !e.static);
+            if (hasMovingEntity) {
+                this.actionLogs.push(`At position ${currentPos}, AV waited for the moving entity`)
+                return false;
+            }
+
+            // Find the highest societal value among blocking entities
+            const highestSocietalValue = Math.max(...blockingEntities.map(e => this.entities[e.id].societalValue));
+            const avValue = this.entities[placedEntity.id].societalValue;
+            const avColumnPos = (currentPos % this.totalColumns);  // 1 = left, 2 = middle, 3 = right
+
+            // Filter entities based on AV position to minimize damage
+            const crashTargets = blockingEntities.filter(e => {
+                if (avColumnPos === 1) return e.position <= nextRowStart + 1;
+                if (avColumnPos === 2) return true;
+                if (avColumnPos === 3) return e.position >= nextRowStart + 1;
+            });
+
+            // 5. If an entity with a higher societal value is blocking, crash into it
+            const targetsWithHighestValue = crashTargets.filter(
+                each => this.entities[each.id].societalValue === highestSocietalValue
+            );
+
+            if (highestSocietalValue >= avValue && targetsWithHighestValue.length > 0) {
+                // AV crashes into the entity with the highest value
+                this.updatePosition(entityIndex, targetsWithHighestValue[0].position);
+                return this.hasCollisionOccurred(entityIndex);
+            } else {
+                // AV crashes into the side wall based on its position
+                const wallDirection = avColumnPos === 1 ? "left" : avColumnPos === 3 ? "right" : "side";
+                toast.error(`Crash into ${wallDirection} wall`);
+                const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
+                this.updatePosition(entityIndex, isLeftSafe ? currentPos - 1 : currentPos + 1);
+                return true;  // AV avoids further collision by staying in place or hitting the wall
+            }
+        },
+
+        reroute(entityIndex, currentPos, nextPosition, nextRowStart) {
+            const nextPositionRight = nextPosition + 1;
+            const nextPositionLeft = nextPosition - 1;
+
             if (nextRowStart === nextPosition) {
                 // Case: AV is in the first column of the row
-                const nextPositionRight = nextPosition + 1;
-
                 if (this.checkCollisionAt(nextPositionRight)) {
-                    // If blocked to the right, move right at current row
-                    this.updatePosition(entityIndex, currentPos + 1);
-                    this.actionLogs.push(`No Collision Detected at ${currentPos + 1}! AV has moved from ${currentPos} to ${currentPos + 1}`);
-
+                    const currentPositionRight = currentPos + 1;
+                    this.updatePosition(entityIndex, currentPositionRight);
+                    this.actionLogs.push(`No Collision Detected at ${currentPositionRight}! AV has moved from ${currentPos} to ${currentPositionRight}`);
                 } else {
-                    // Move forward to the next row's right cell
+                    if (this.waitIfOthersComing(nextPositionRight)) return;
                     this.updatePosition(entityIndex, nextPositionRight);
                     this.actionLogs.push(`No Collision Detected at ${nextPositionRight}! AV has moved from ${currentPos} to ${nextPositionRight}`);
                 }
-
-                return this.hasCollisionOccurred(entityIndex);
-
             } else if ((nextRowStart + 1) === nextPosition) {
                 // Case: AV is in the middle column of the row
-                const nextPositionLeft = nextPosition - 1;
-                const nextPositionRight = nextPosition + 1;
-
-                // Prioritize left if free, otherwise move right
                 if (this.checkCollisionAt(nextPositionLeft)) {
+                    if (this.waitIfOthersComing(nextPositionRight)) return;
                     this.updatePosition(entityIndex, nextPositionRight);
                     this.actionLogs.push(`No Collision Detected at ${nextPositionRight}! AV has moved from ${currentPos} to ${nextPositionRight}`);
-
                 } else {
+                    if (this.waitIfOthersComing(nextPositionLeft)) return;
                     this.updatePosition(entityIndex, nextPositionLeft);
                     this.actionLogs.push(`No Collision Detected at ${nextPositionLeft}! AV has moved from ${currentPos} to ${nextPositionLeft}`);
-
                 }
-
-                return this.hasCollisionOccurred(entityIndex);
-
             } else {
                 // Case: AV is in the last column of the row
-                const nextPositionLeft = nextPosition - 1;
-
                 if (this.checkCollisionAt(nextPositionLeft)) {
-                    // If blocked to the left, move left at current row
-                    this.updatePosition(entityIndex, currentPos - 1);
-                    this.actionLogs.push(`No Collision Detected at ${currentPos - 1}! AV has moved from ${currentPos} to ${currentPos - 1}`);
-
+                    const currentPositionLeft = currentPos - 1;
+                    this.updatePosition(entityIndex, currentPositionLeft);
+                    this.actionLogs.push(`No Collision Detected at ${currentPositionLeft}! AV has moved from ${currentPos} to ${currentPositionLeft}`);
                 } else {
-                    // Move forward to the next row's left cell
+                    if (this.waitIfOthersComing(nextPositionLeft)) return;
                     this.updatePosition(entityIndex, nextPositionLeft);
                     this.actionLogs.push(`No Collision Detected at ${nextPositionLeft}! AV has moved from ${currentPos} to ${nextPositionLeft}`);
-
                 }
-
-                return this.hasCollisionOccurred(entityIndex);
             }
+        },
+
+        waitIfOthersComing(nextPosition) {
+            return this.placedEntities.some(e => this.inTheSameCol(nextPosition, e.position));
+        },
+
+        getNextPosition(currentPosition) {
+            return currentPosition - this.totalColumns;
+        },
+
+        getNextRowStart(nextPosition) {
+            return Math.floor((nextPosition - 1) / this.totalColumns) * this.totalColumns + 1;
+        },
+
+        inTheSameCol(firstPosition, secondPosition) {
+            return firstPosition % this.totalColumns === secondPosition % this.totalColumns;
+        },
+
+        isRowBlocked(nextRowStart) {
+            return [...Array(3)].every((_, x) => this.checkCollisionAt(nextRowStart + x));
         },
 
         istimeToMove(placedEntity, speed) {
@@ -472,6 +457,7 @@ export const useAppStore = defineStore('app', {
         },
 
         checkCollisionAt(position) {
+            if (this.isFinishLine(position)) return false;
             return this.placedEntities.some(e => e.position === position);
         }
 
