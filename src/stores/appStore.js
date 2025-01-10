@@ -125,14 +125,6 @@ export const useAppStore = defineStore('app', {
                     speed: 0,
                     canMove: false
                 },
-                "entity-elderly": {
-                    id: "entity-elderly",
-                    name: "elderly person",
-                    content: "👵",
-                    societalValue: 1,
-                    speed: 80,
-                    canMove: true
-                }
             },
             placedEntities: [],
             backupEntities: [],
@@ -280,6 +272,7 @@ export const useAppStore = defineStore('app', {
                 if (this.checkAllEntitiesStopped()) {
                     this.stopPlayMode();
                     toast.success("All entities have reached their destination!");
+                    this.actionLogs.push(`All Moving Entities have reached their destinations`);
                     clearInterval(moveInterval);
                 }
 
@@ -296,7 +289,6 @@ export const useAppStore = defineStore('app', {
             const nextPosition = placedEntity.position - this.totalColumns;
 
             if (nextPosition >= 0) {
-
                 this.updatePosition(entityIndex, nextPosition);
                 return this.hasCollisionOccurred(entityIndex);
             }
@@ -317,7 +309,7 @@ export const useAppStore = defineStore('app', {
 
             // 2. Calculate the starting point of the next row
             const nextRowStart = this.getNextRowStart(nextPosition);
-            
+
             // 3. Check if the entire next row is blocked
             if (this.isRowBlocked(nextRowStart)) {
                 // 4. If the row is blocked, decide how to handle based on societal values
@@ -325,7 +317,6 @@ export const useAppStore = defineStore('app', {
                 return this.handleBlockedRow(entityIndex, placedEntity, currentPos, nextRowStart);
             }
 
-            console.log("rerout lay", currentPos)
             // 6. If row is not fully blocked, attempt to reroute (left, right, or forward)
             this.reroute(entityIndex, currentPos, nextPosition, nextRowStart);
 
@@ -353,7 +344,7 @@ export const useAppStore = defineStore('app', {
             const crashTargets = blockingEntities.filter(e => {
                 if (avColumnPos === 1) return e.position <= nextRowStart + 1;
                 if (avColumnPos === 2) return true;
-                if (avColumnPos === 3) return e.position >= nextRowStart + 1;
+                if (avColumnPos === 3 || avColumnPos === 0) return e.position >= nextRowStart + 1;
             });
 
             // 5. If an entity with a higher societal value is blocking, crash into it
@@ -361,16 +352,54 @@ export const useAppStore = defineStore('app', {
                 each => this.entities[each.id].societalValue === highestSocietalValue
             );
 
+            // If the least vulnerable entity is too far from AV, get close to it by moving to side positions
+            if (targetsWithHighestValue.length == 0) {
+                
+                if (avColumnPos === 1) {
+                    // If AV is in the leftmost column, move to the right side of the current position
+                    this.actionLogs.push(`Detected the least vulnerable entity on the right side of the next row, AV moved to the right to get close.`);
+                    this.updatePosition(entityIndex, currentPos + 1);
+
+
+                } else if (avColumnPos === 2) {
+                    // If AV is in the middle column, check the positions to the left and right
+                    const leftPosition = currentPos - 1;
+                    const rightPosition = currentPos + 1;
+
+                    if (!this.checkCollisionAt(leftPosition)) {
+                        this.actionLogs.push(`Detected the least vulnerable entity on the left side of the next row, AV moved to the left to get close.`);
+                        this.updatePosition(entityIndex, leftPosition);
+
+
+                    } else if (!this.checkCollisionAt(rightPosition)) {
+                        this.actionLogs.push(`Detected the least vulnerable entity on the right side of the next row, AV moved to the right to get close.`);
+                        this.updatePosition(entityIndex, rightPosition);
+
+
+                    }
+                } else if (avColumnPos === 3 || avColumnPos === 0) {
+                    // If AV is in the rightmost column, move to the left side of the current position
+                    this.actionLogs.push(`Detected the least vulnerable entity on the left side of the next row, AV moved to the left to get close.`);
+                    this.updatePosition(entityIndex, currentPos - 1);
+
+
+                }
+                return this.hasCollisionOccurred(entityIndex);
+            }
+
+
             if (highestSocietalValue >= avValue && targetsWithHighestValue.length > 0) {
+                this.actionLogs.push(`AV decided to crash into the least vulnerable entity: ${targetsWithHighestValue[0].id}`);
                 // AV crashes into the entity with the highest value
                 this.updatePosition(entityIndex, targetsWithHighestValue[0].position);
                 return this.hasCollisionOccurred(entityIndex);
             } else {
                 // AV crashes into the side wall based on its position
                 const wallDirection = avColumnPos === 1 ? "left" : avColumnPos === 3 ? "right" : "side";
-                toast.error(`Crash into ${wallDirection} wall`);
+                this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
                 const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
                 this.updatePosition(entityIndex, isLeftSafe ? currentPos - 1 : currentPos + 1);
+                this.placedEntities[entityIndex].stop = true;
                 return true;  // AV avoids further collision by staying in place or hitting the wall
             }
         },
@@ -416,7 +445,7 @@ export const useAppStore = defineStore('app', {
         },
 
         waitIfOthersComing(nextPosition) {
-            return this.placedEntities.some(e => (this.inTheSameCol(nextPosition, e.position)) && !this.isFinishLine(e.position));
+            return this.placedEntities.some(e => (this.inTheSameCol(nextPosition, e.position)) && !this.isFinishLine(e.position) && !e.static);
         },
 
         getNextPosition(currentPosition) {
@@ -444,7 +473,6 @@ export const useAppStore = defineStore('app', {
             placedEntity.position = nextPosition;
             placedEntity.lastMoveTime = Date.now();
             this.actionLogs.push(`${placedEntity.id} has moved to ${placedEntity.position}`)
-
             if (this.isFinishLine(nextPosition)) placedEntity.stop = true;
         },
 

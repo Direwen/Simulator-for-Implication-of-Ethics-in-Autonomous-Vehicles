@@ -12,7 +12,7 @@
     <div class="flex flex-col xl:flex-row xl:justify-center xl:items-center mx-4">
       <GameBoard />
 
-      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] bg-base-300 mx-4 roudned overflow-y-scroll shadow">
+      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] mx-4 roudned overflow-y-scroll shadow">
         <h1 class="text-2xl lg:text-3xl font-bold underline underline-offset-4 mb-4">Action Logs</h1>
 
         <section class="text-lg lg:text-xl">
@@ -20,7 +20,7 @@
             <p>{{ log }}</p>
           </section>
 
-          <p class="text-center" v-show="appStore.actionLogs.length == 0">No Logs Found</p>
+          <p class="text-center font-semibold uppercase tracking-tighter" v-show="appStore.actionLogs.length == 0">No Logs Found</p>
         </section>
       </div>
     </div>
@@ -29,6 +29,8 @@
       <button v-if="!appStore.playMode && !appStore.showClearButton" @click="appStore.startPlayMode()" class="btn btn-wide btn-outline rounded-lg">
         {{ !appStore.playMode ? "Play" : "Stop" }}
       </button>
+
+      <button class="btn btn-outline" v-if="appStore.playMode && !appStore.showClearButton" @click="appStore.stopPlayMode()">Stop</button>
 
       <button v-if="appStore.showClearButton" class="btn btn-outline rounded-lg md:btn-wide" @click="appStore.restartSimulation()">Restart</button>
 
