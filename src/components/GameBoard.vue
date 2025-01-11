@@ -1,6 +1,6 @@
 <template>
 
-    <div class="shadow-2xl rounded border grid grid-cols-3 w-9/12 md:w-1/2 lg:w-2/5 xl:w-5/12 mx-auto">
+    <div class="shadow-2xl rounded border grid grid-cols-3 mx-auto">
         <div v-for="index in appStore.totalRows * appStore.totalColumns"
             :title="appStore.isStartingLine(index) ? `Starting Position (${index})` : `Position (${index})`"
             :key="index" :data-index="index"

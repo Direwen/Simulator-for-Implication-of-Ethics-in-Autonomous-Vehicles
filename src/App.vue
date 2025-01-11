@@ -10,24 +10,14 @@
     <!-- Container for draggable entities -->
     <!-- Board -->
     <div class="flex flex-col xl:flex-row xl:justify-center xl:items-center mx-4">
-      <GameBoard />
+      <GameBoard class="w-9/12 md:w-1/2 lg:w-2/5 xl:w-5/12 " />
 
-      <div class="flex-1 px-1 py-4 xl:px-4 xl:py-6 max-h-[400px] mx-4 roudned overflow-y-scroll shadow">
-        <h1 class="text-2xl lg:text-3xl font-bold underline underline-offset-4 mb-4">Action Logs</h1>
-
-        <section class="text-lg lg:text-xl">
-          <section v-for="log in appStore.actionLogs.slice().reverse()" :key="log.id" class="transition-all duration-200 ease-in-out cursor-pointer hover:bg-gradient-to-b hover:from-indigo-900 hover:to-purple-600 hover:text-white px-2 py-1">
-            <p>{{ log }}</p>
-          </section>
-
-          <p class="text-center font-semibold uppercase tracking-tighter" v-show="appStore.actionLogs.length == 0">No Logs Found</p>
-        </section>
-      </div>
+      <LogsContainer class="flex-1" />
     </div>
 
     <section class="flex justify-center items-center gap-2 p-4 w-fit mx-auto">
       <button v-if="!appStore.playMode && !appStore.showClearButton" @click="appStore.startPlayMode()" class="btn btn-wide btn-outline rounded-lg">
-        {{ !appStore.playMode ? "Play" : "Stop" }}
+        Play
       </button>
 
       <button class="btn btn-outline" v-if="appStore.playMode && !appStore.showClearButton" @click="appStore.stopPlayMode()">Stop</button>
@@ -45,6 +35,7 @@ import Navbar from './components/Navbar.vue';
 import EntitiesDisplayContainer from './components/EntitiesDisplayContainer.vue';
 import GameBoard from './components/GameBoard.vue';
 import Overlay from './components/Overlay.vue';
+import LogsContainer from './components/LogsContainer.vue';
 import { useAppStore } from './stores/appStore';
 
 const appStore = useAppStore();
