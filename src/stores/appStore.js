@@ -343,26 +343,7 @@ export const useAppStore = defineStore('app', {
 
             if (avValue > highestSocietalValue) {
                 // AV crashes into the side wall based on its position
-                console.log("AV has the highest societal value")
-                const wallDirection = avColumnPos === 1 ? "left" : (avColumnPos === 3 || avColumnPos === 0) ? "right" : "side";
-                this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
-                const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
-                console.log(isLeftSafe)
-                if (isLeftSafe && wallDirection == 'left') {
-                    this.updatePosition(entityIndex, currentPos);
-                    
-                } else if (wallDirection == 'right') {
-                    this.updatePosition(entityIndex, currentPos);
-                    
-                } else if (!isLeftSafe && wallDirection == 'side') {
-                    this.updatePosition(entityIndex, currentPos + 1);
-                    
-                } else {
-                    this.updatePosition(entityIndex, currentPos - 1);
-
-                }
-                
-                this.placedEntities[entityIndex].stop = true;
+                this.handleWallCrash(entityIndex, currentPos, avColumnPos);
                 return true;  // AV avoids further collision by staying in place or hitting the wall
             }
 
@@ -421,27 +402,45 @@ export const useAppStore = defineStore('app', {
                 return this.hasCollisionOccurred(entityIndex);
             } else {
                 // AV crashes into the side wall based on its position
-                console.log("AV has the highest societal value")
-                const wallDirection = avColumnPos === 1 ? "left" : (avColumnPos === 3 || avColumnPos === 0) ? "right" : "side";
-                this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
-                const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
-                console.log(isLeftSafe)
-                if (isLeftSafe && wallDirection == 'left') {
-                    this.updatePosition(entityIndex, currentPos);
-                    
-                } else if (wallDirection == 'right') {
-                    this.updatePosition(entityIndex, currentPos);
-                    
-                } else if (!isLeftSafe && wallDirection == 'side') {
-                    this.updatePosition(entityIndex, currentPos + 1);
-                    
-                } else {
-                    this.updatePosition(entityIndex, currentPos - 1);
-
-                }
-                this.placedEntities[entityIndex].stop = true;
+                this.handleWallCrash(entityIndex, currentPos, avColumnPos);
                 return true;  // AV avoids further collision by staying in place or hitting the wall
             }
+        },
+
+        handleWallCrash(entityIndex, currentPos, avColumnPos) {
+            const wallDirection = avColumnPos === 1 ? "left" : (avColumnPos === 3 || avColumnPos === 0) ? "right" : "side";
+
+            // Check safety only if turning left or right
+            if (wallDirection === 'left' || wallDirection === 'right') {
+                this.updatePosition(entityIndex, currentPos);
+                this.placedEntities[entityIndex].stop = true;
+                this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
+
+            } else {
+                const isLeftSafe = this.placedEntities.every(each => each.position != currentPos - 1);
+                const isRightSafe = this.placedEntities.every(each => each.position != currentPos + 1);
+            
+                const newPos = isLeftSafe 
+                    ? currentPos - 1 
+                    : isRightSafe 
+                    ? currentPos + 1 
+                    : currentPos;
+            
+                this.updatePosition(entityIndex, newPos); // Default action for side
+                this.placedEntities[entityIndex].stop = true;
+            
+                // Determine collision direction and log it
+                if (!isLeftSafe && !isRightSafe) {
+                    this.actionLogs.push(`AV detected potential collisions on both sides resulting in stopping at the current position.`);
+                } else if (!isLeftSafe) {
+                    this.actionLogs.push(`AV deteched the potential collision with an entity on the left side resulting in crushing into the right wall.`);
+                } else if (!isRightSafe) {
+                    this.actionLogs.push(`AV deteched the potential collision with an entity on the right side resulting in crushing into the left wall.`);
+                } else {
+                    this.actionLogs.push(`AV decided to move to crush into one of the side walls to avoid collision with others.`);
+                }
+            }
+            
         },
 
         reroute(entityIndex, currentPos, nextPosition, nextRowStart) {
