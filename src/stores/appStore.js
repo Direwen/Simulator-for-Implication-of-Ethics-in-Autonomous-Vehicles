@@ -340,6 +340,32 @@ export const useAppStore = defineStore('app', {
             const avValue = this.entities[placedEntity.id].societalValue;
             const avColumnPos = (currentPos % this.totalColumns);  // 1 = left, 2 = middle, 3 = right
 
+
+            if (avValue > highestSocietalValue) {
+                // AV crashes into the side wall based on its position
+                console.log("AV has the highest societal value")
+                const wallDirection = avColumnPos === 1 ? "left" : (avColumnPos === 3 || avColumnPos === 0) ? "right" : "side";
+                this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
+                const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
+                console.log(isLeftSafe)
+                if (isLeftSafe && wallDirection == 'left') {
+                    this.updatePosition(entityIndex, currentPos);
+                    
+                } else if (wallDirection == 'right') {
+                    this.updatePosition(entityIndex, currentPos);
+                    
+                } else if (!isLeftSafe && wallDirection == 'side') {
+                    this.updatePosition(entityIndex, currentPos + 1);
+                    
+                } else {
+                    this.updatePosition(entityIndex, currentPos - 1);
+
+                }
+                
+                this.placedEntities[entityIndex].stop = true;
+                return true;  // AV avoids further collision by staying in place or hitting the wall
+            }
+
             // Filter entities based on AV position to minimize damage
             const crashTargets = blockingEntities.filter(e => {
                 if (avColumnPos === 1) return e.position <= nextRowStart + 1;
@@ -395,11 +421,24 @@ export const useAppStore = defineStore('app', {
                 return this.hasCollisionOccurred(entityIndex);
             } else {
                 // AV crashes into the side wall based on its position
-                const wallDirection = avColumnPos === 1 ? "left" : avColumnPos === 3 ? "right" : "side";
+                console.log("AV has the highest societal value")
+                const wallDirection = avColumnPos === 1 ? "left" : (avColumnPos === 3 || avColumnPos === 0) ? "right" : "side";
                 this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
                 const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
                 console.log(isLeftSafe)
-                this.updatePosition(entityIndex, isLeftSafe ? currentPos - 1 : currentPos + 1);
+                if (isLeftSafe && wallDirection == 'left') {
+                    this.updatePosition(entityIndex, currentPos);
+                    
+                } else if (wallDirection == 'right') {
+                    this.updatePosition(entityIndex, currentPos);
+                    
+                } else if (!isLeftSafe && wallDirection == 'side') {
+                    this.updatePosition(entityIndex, currentPos + 1);
+                    
+                } else {
+                    this.updatePosition(entityIndex, currentPos - 1);
+
+                }
                 this.placedEntities[entityIndex].stop = true;
                 return true;  // AV avoids further collision by staying in place or hitting the wall
             }
