@@ -78,31 +78,46 @@ const entityDetails = ref(null);
 onMounted(() => {
     if (props.id) {
         entityDetails.value = appStore.entities[props.id];
-        console.log(entityDetails.value);
         return;
     }
     const placedEntity = appStore.placedEntities.filter(
         (en) => en.position == props.cellIndex
     );
     entityDetails.value = appStore.entities[placedEntity[0].id];
-    console.log(entityDetails.value.societalValue);
 });
 
 const updateSocietalValue = (value) => {
     const clampedValue = Math.max(0, Math.min(100, value));
     entityDetails.value.societalValue = clampedValue;
-    const placedEntity = appStore.placedEntities.find(
-        (en) => en.position == props.cellIndex
-    );
-    appStore.entities[placedEntity.id].societalValue = clampedValue;
+
+    // Update the entity in the appStore
+    if (props.id) {
+        appStore.entities[props.id].societalValue = clampedValue;
+    } else if (props.cellIndex) {
+        const placedEntity = appStore.placedEntities.find(
+            (en) => en.position == props.cellIndex
+        );
+        if (placedEntity) {
+            appStore.entities[placedEntity.id].societalValue = clampedValue;
+        }
+    }
 };
 
 const updateSpeed = (value) => {
     const clampedValue = Math.max(50, Math.min(500, value));
     entityDetails.value.speed = clampedValue;
-    const placedEntity = appStore.placedEntities.find(
-        (en) => en.position == props.cellIndex
-    );
-    appStore.entities[placedEntity.id].speed = clampedValue;
+
+    // Update the entity in the appStore
+    if (props.id) {
+        appStore.entities[props.id].speed = clampedValue;
+    } else if (props.cellIndex) {
+        const placedEntity = appStore.placedEntities.find(
+            (en) => en.position == props.cellIndex
+        );
+        if (placedEntity) {
+            appStore.entities[placedEntity.id].speed = clampedValue;
+        }
+    }
 };
+
 </script>

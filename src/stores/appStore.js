@@ -398,6 +398,7 @@ export const useAppStore = defineStore('app', {
                 const wallDirection = avColumnPos === 1 ? "left" : avColumnPos === 3 ? "right" : "side";
                 this.actionLogs.push(`AV decided to crash into the ${wallDirection} wall to avoid collision with more vulnerable entities.`);
                 const isLeftSafe = this.placedEntities.some(each => each.position - this.totalColumns !== currentPos - 1);
+                console.log(isLeftSafe)
                 this.updatePosition(entityIndex, isLeftSafe ? currentPos - 1 : currentPos + 1);
                 this.placedEntities[entityIndex].stop = true;
                 return true;  // AV avoids further collision by staying in place or hitting the wall
